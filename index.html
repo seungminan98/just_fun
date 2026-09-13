@@ -169,13 +169,20 @@ button:focus-visible,.head:focus-visible,select:focus-visible,input:focus-visibl
 
 .banner{margin-bottom:14px;padding:11px 12px;border:1px solid var(--line);font-size:12.5px;line-height:1.5}
 .banner .bt{margin-bottom:9px}
+.banner .warn{color:var(--pink);font-weight:700}
 .banner .bb{display:flex;gap:8px}
 .banner button{flex:1;border:1px solid var(--line);border-radius:2px;padding:7px 9px;font-size:12px;font-weight:700}
 
 .share{margin-top:24px;padding-top:16px;border-top:1.5px solid var(--line)}
 .share .field{margin-top:0;margin-bottom:9px}
 button.wide{width:100%;border:1.5px solid var(--line);border-radius:2px;padding:11px;font-size:14px;font-weight:900;background:var(--ink);color:var(--paper)}
+button.wide.alt{margin-top:8px;background:var(--paper);color:var(--ink)}
 #linkOut{width:100%;margin-top:9px;font-size:12px;color:var(--soft);border-color:var(--hair)}
+#tableOut{
+  width:100%;margin-top:9px;height:120px;font:inherit;font-size:11.5px;line-height:1.5;
+  color:var(--ink);background:var(--paper);border:1px solid var(--hair);border-radius:2px;
+  padding:8px;white-space:pre;overflow:auto;resize:vertical
+}
 .msg{font-size:12px;font-weight:700;margin:8px 0 0}
 .note{font-size:11.5px;color:var(--soft);margin-top:22px;line-height:1.75}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -233,6 +240,7 @@ button.wide{width:100%;border:1.5px solid var(--line);border-radius:2px;padding:
 <section id="app" hidden>
   <div id="banner" class="banner" hidden>
     <div class="bt"><b id="bannerName"></b>의 예측을 보는 중입니다.</div>
+    <div class="bt warn" id="bannerWarn" hidden>주소가 중간에 잘린 것 같습니다. 순서가 원래대로 안 보이면 링크 전체를 다시 받아주세요.</div>
     <div class="bb">
       <button id="btnTake" type="button">이대로 내 것에 담기</button>
       <button id="btnMine" type="button">내 예측 열기</button>
@@ -251,10 +259,10 @@ button.wide{width:100%;border:1.5px solid var(--line);border-radius:2px;padding:
   <div class="cut">
     <span class="lab">진급 인원</span>
     <div class="seg">
-      <button type="button" id="mN" class="on">명</button>
-      <button type="button" id="mP">%</button>
+      <button type="button" id="mN">명</button>
+      <button type="button" id="mP" class="on">%</button>
     </div>
-    <input type="number" id="cutVal" min="1" max="22" step="1" value="6" inputmode="numeric">
+    <input type="number" id="cutVal" min="1" max="100" step="1" value="30" inputmode="numeric">
     <p class="hint" id="cutHint"></p>
   </div>
 
@@ -308,7 +316,9 @@ button.wide{width:100%;border:1.5px solid var(--line);border-radius:2px;padding:
   <div class="share">
     <div class="field"><span class="k">작성자</span><input type="text" id="author" maxlength="12" placeholder="예: 승민"></div>
     <button id="btnLink" class="wide" type="button">공유 링크 만들기</button>
+    <button id="btnTable" class="wide alt" type="button">표로 복사</button>
     <input type="text" id="linkOut" readonly hidden>
+    <textarea id="tableOut" readonly hidden></textarea>
     <p id="linkMsg" class="msg" hidden></p>
   </div>
 
@@ -322,7 +332,7 @@ button.wide{width:100%;border:1.5px solid var(--line);border-radius:2px;padding:
 </div>
 
 <script>
-const NAMES=["효묵","함좌","희섭","민석","승언","현석","민오","해원","서준","지승","서연","윤석","대웅","신희","원영","혜림","청운","경훈","혜원","상미","현구","장진"];
+const NAMES=["효묵","민오","서연","해원","대웅","혜원","경훈","현석","서준","현구","윤석","신희","하림","지승","상미","장진","희섭","민석","혜림","원영","승언","청운"];
 const N=NAMES.length;
 const GRADE={"가":100,"나":75,"다":50,"라":20};
 const GKEYS=["가","나","다","라"];
@@ -333,7 +343,7 @@ const FB={g:70,o:60,y:8};
 const YEARS=[6,7,8,9,10,11,12,13,14];
 const YLAB={6:"6년차 이하 · 특진",7:"7년차 · 특진",8:"8년차 · 정진급",9:"9년차 · 1년 밀림",
             10:"10년차 · 2년 밀림",11:"11년차 · 3년 밀림",12:"12년차 · 4년 밀림",13:"13년차 · 5년 밀림",14:"14년차 이상"};
-const KEY="promo-rank-v2";
+const KEY="promo-rank-v3";
 const RM=window.matchMedia&&matchMedia("(prefers-reduced-motion:reduce)").matches;
 const $=id=>document.getElementById(id);
 
@@ -357,11 +367,11 @@ function blank(){return NAMES.map((n,i)=>({no:i+1,name:n,gc:["","","",""],gu:0,o
 
 let view="home", mode="s";
 let W={g:65,o:25,y:10};
-let cut={mode:"n",val:6};
+let cut={mode:"p",val:30};
 let people=blank();
 let sOrder=NAMES.map((n,i)=>i+1);
 let order=null, lastRank={}, dirty=false, openId=null;
-let shared=false, author="";
+let shared=false, author="", truncated=false;
 
 function norm(){
   people.forEach(p=>{
@@ -399,18 +409,25 @@ function save(){
 }
 
 /* ── share link ── */
+function isBlank(p){
+  return !p.gu && p.o==="" && p.yr==="" && p.bonus==="" && p.gc.every(x=>x===""||x==="0");
+}
 function encode(){
-  const rows=people.map(p=>[
-    p.gc.join(","), p.gu?1:"",
-    p.o===""?"":(p.o==="?"?"q":OKEYS.indexOf(p.o)),
-    p.yr===""?"":(p.yr==="?"?"q":p.yr),
-    p.bonus
-  ].join("|")).join(";");
-  return "v=2&m="+mode+"&n="+encodeURIComponent(author||"")
-    +"&w="+[W.g,W.o,W.y].join(",")
+  // 간단 버전은 상세 값을 안 쓴다. 비어 있으면 d/w 를 빼서 링크를 짧게 —
+  // 메신저가 긴 주소를 자르면 링크 전체가 무효가 되므로.
+  let u="v=3&m="+mode+"&n="+encodeURIComponent(author||"")
     +"&c="+cut.mode+cut.val
-    +"&s="+sOrder.join(",")
-    +"&d="+encodeURIComponent(rows);
+    +"&s="+sOrder.join(",");
+  if(people.some(p=>!isBlank(p))){
+    const rows=people.map(p=>[
+      p.gc.join(","), p.gu?1:"",
+      p.o===""?"":(p.o==="?"?"q":OKEYS.indexOf(p.o)),
+      p.yr===""?"":(p.yr==="?"?"q":p.yr),
+      p.bonus
+    ].join("|")).join(";");
+    u+="&w="+[W.g,W.o,W.y].join(",")+"&d="+encodeURIComponent(rows);
+  }
+  return u;
 }
 function decode(hash){
   const q={};
@@ -418,17 +435,13 @@ function decode(hash){
     const i=kv.indexOf("="); if(i<0)return;
     try{q[kv.slice(0,i)]=decodeURIComponent(kv.slice(i+1));}catch(e){}
   });
-  if(!q.d)return null;
-  const rows=q.d.split(";");
-  if(rows.length!==N)return null;
-  const ppl=NAMES.map((nm,i)=>{
+  if(q.v!=="3")return null;
+  if(!q.s&&!q.d)return null;
+  const rows=(q.d||"").split(";");
+  const ppl=(q.d&&rows.length===N)?NAMES.map((nm,i)=>{
     const f=(rows[i]||"").split("|");
-    const legacy=f.length===4;
     const gcs=(f[0]||"").split(",");
-    const gu=legacy?"":f[1];
-    const oc=legacy?f[1]:f[2];
-    const yc=legacy?f[2]:f[3];
-    const bn=legacy?f[3]:f[4];
+    const gu=f[1], oc=f[2], yc=f[3], bn=f[4];
     return {
       no:i+1,name:nm,
       gc:[0,1,2,3].map(k=>gcs[k]===undefined?"":gcs[k]),
@@ -437,15 +450,20 @@ function decode(hash){
       yr:yc===""||yc===undefined?"":(yc==="q"?"?":yc),
       bonus:bn||""
     };
-  });
+  }):null;
   const w=(q.w||"").split(",").map(Number);
   const cm=/^([np])(\d+)$/.exec(q.c||"");
+  // 순서는 1..N 이 빠짐없이 한 번씩 있어야 온전한 링크다
+  const seen=new Set();
+  const so=(q.s||"").split(",").map(Number)
+    .filter(x=>Number.isInteger(x)&&x>=1&&x<=N&&!seen.has(x)&&seen.add(x));
   return {
     people:ppl, author:q.n||"누군가",
     mode:(q.m==="s"||q.m==="d")?q.m:"d",
     W:(w.length===3&&w.every(x=>!isNaN(x)))?{g:w[0],o:w[1],y:w[2]}:null,
     cut:cm?{mode:cm[1],val:Number(cm[2])}:null,
-    sOrder:(q.s||"").split(",").map(Number).filter(x=>!isNaN(x))
+    sOrder:so.length===N?so:null,
+    truncated:!!q.s&&so.length!==N
   };
 }
 
@@ -757,25 +775,27 @@ function paintBanner(){
   if(!shared)return;
   $("bannerName").textContent=author+"님";
   $("btnMine").textContent=hasLocal()?"내 예측 열기":"빈 표로 시작";
+  $("bannerWarn").hidden=!truncated;
 }
 function detach(){
   if(!shared)return;
-  shared=false;
+  shared=false; truncated=false;
   history.replaceState(null,"",location.pathname+location.search);
   paintBanner();
 }
 function resetAll(){
   people=blank(); sOrder=NAMES.map((n,i)=>i+1);
-  W={g:65,o:25,y:10}; cut={mode:"n",val:6}; author="";
+  W={g:65,o:25,y:10}; cut={mode:"p",val:30}; author="";
 }
 
 /* ── boot ── */
 const incoming = location.hash.length>3 ? decode(location.hash) : null;
 if(incoming){
-  people=incoming.people; author=incoming.author; shared=true; mode=incoming.mode;
+  if(incoming.people)people=incoming.people;
+  author=incoming.author; shared=true; mode=incoming.mode; truncated=!!incoming.truncated;
   if(incoming.W)W=incoming.W;
   if(incoming.cut)cut=incoming.cut;
-  if(incoming.sOrder&&incoming.sOrder.length)sOrder=incoming.sOrder;
+  if(incoming.sOrder)sOrder=incoming.sOrder;
   norm();
 }else{
   loadLocal();
@@ -904,6 +924,41 @@ $("btnLink").addEventListener('click',()=>{
   const done=()=>{msg.textContent=author+"님 예측 링크를 복사했습니다.";};
   const manual=()=>{msg.style.color="var(--soft)";msg.textContent="아래 주소를 길게 눌러 복사하세요.";};
   if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(url).then(done).catch(manual);
+  else{out.select();try{document.execCommand('copy')?done():manual();}catch(e){manual();}}
+});
+
+/* 표로 복사: 엑셀·시트에 그대로 붙도록 탭 구분 */
+function tableText(){
+  const q=quota(), out=[];
+  if(mode==="s"){
+    out.push(["순위","이름","결과"].join("\t"));
+    sOrder.forEach((no,i)=>{
+      out.push([i+1,people.find(p=>p.no===no).name,i<q?"진급":"미진급"].join("\t"));
+    });
+  }else{
+    out.push(["순위","이름","결과","점수","고과","어학","연차"].join("\t"));
+    ranked().forEach((s,i)=>{
+      const r=s.r;
+      out.push([
+        i+1, s.p.name,
+        r.touched?(s.go?"진급":"미진급"):"미입력",
+        r.touched?Math.round(r.total):"",
+        r.gLabel||"",
+        r.oLabel?r.oLabel.replace(/^오픽 /,""):"",
+        r.yLabel||""
+      ].join("\t"));
+    });
+  }
+  return out.join("\n");
+}
+$("btnTable").addEventListener('click',()=>{
+  const txt=tableText(), msg=$("linkMsg"), out=$("tableOut");
+  out.hidden=false; out.value=txt;
+  msg.hidden=false; msg.style.color="var(--pink)";
+  const rows=txt.split("\n").length-1;
+  const done=()=>{msg.textContent=rows+"명 표를 복사했습니다. 엑셀이나 메모장에 붙여넣으세요.";};
+  const manual=()=>{msg.style.color="var(--soft)";msg.textContent="아래 표를 길게 눌러 복사하세요.";};
+  if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(txt).then(done).catch(manual);
   else{out.select();try{document.execCommand('copy')?done():manual();}catch(e){manual();}}
 });
 
