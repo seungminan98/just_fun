@@ -177,7 +177,11 @@ button:focus-visible,.head:focus-visible,select:focus-visible,input:focus-visibl
 .share .field{margin-top:0;margin-bottom:9px}
 button.wide{width:100%;border:1.5px solid var(--line);border-radius:2px;padding:11px;font-size:14px;font-weight:900;background:var(--ink);color:var(--paper)}
 button.wide.alt{margin-top:8px;background:var(--paper);color:var(--ink)}
-#linkOut{width:100%;margin-top:9px;font-size:12px;color:var(--soft);border-color:var(--hair)}
+#linkOut{
+  width:100%;margin-top:9px;font:inherit;font-size:12px;line-height:1.5;color:var(--soft);
+  background:var(--paper);border:1px solid var(--hair);border-radius:2px;padding:8px;
+  resize:vertical;word-break:break-all
+}
 #tableOut{
   width:100%;margin-top:9px;height:120px;font:inherit;font-size:11.5px;line-height:1.5;
   color:var(--ink);background:var(--paper);border:1px solid var(--hair);border-radius:2px;
@@ -239,7 +243,7 @@ button.wide.alt{margin-top:8px;background:var(--paper);color:var(--ink)}
 
 <section id="app" hidden>
   <div id="banner" class="banner" hidden>
-    <div class="bt"><b id="bannerName"></b>의 예측을 보는 중입니다.</div>
+    <div class="bt"><b id="bannerName"></b>의 <b id="bannerMode"></b> 예측을 보는 중입니다.</div>
     <div class="bt warn" id="bannerWarn" hidden>주소가 중간에 잘린 것 같습니다. 순서가 원래대로 안 보이면 링크 전체를 다시 받아주세요.</div>
     <div class="bb">
       <button id="btnTake" type="button">이대로 내 것에 담기</button>
@@ -315,9 +319,9 @@ button.wide.alt{margin-top:8px;background:var(--paper);color:var(--ink)}
 
   <div class="share">
     <div class="field"><span class="k">작성자</span><input type="text" id="author" maxlength="12" placeholder="예: 승민"></div>
-    <button id="btnLink" class="wide" type="button">공유 링크 만들기</button>
+    <button id="btnLink" class="wide" type="button"><span id="linkLabel">간단 버전</span> 공유 링크 만들기</button>
     <button id="btnTable" class="wide alt" type="button">표로 복사</button>
-    <input type="text" id="linkOut" readonly hidden>
+    <textarea id="linkOut" readonly hidden rows="3"></textarea>
     <textarea id="tableOut" readonly hidden></textarea>
     <p id="linkMsg" class="msg" hidden></p>
   </div>
@@ -756,11 +760,13 @@ function setView(v){
   if(v!=="home")setMode(v,true);
   window.scrollTo(0,0);
 }
+function modeLabel(m){return (m||mode)==="s"?"간단 버전":"상세 버전";}
 function setMode(m,quiet){
   mode=m;
   $("tabS").classList.toggle('on',m==="s");
   $("tabD").classList.toggle('on',m==="d");
-  $("modeName").textContent = m==="s"?"간단 버전":"상세 버전";
+  $("modeName").textContent=modeLabel();
+  $("linkLabel").textContent=modeLabel();
   $("simple").hidden=(m!=="s");
   $("detail").hidden=(m!=="d");
   if(m==="s")renderSimple();
@@ -774,6 +780,7 @@ function paintBanner(){
   $("banner").hidden=!shared;
   if(!shared)return;
   $("bannerName").textContent=author+"님";
+  $("bannerMode").textContent=modeLabel();
   $("btnMine").textContent=hasLocal()?"내 예측 열기":"빈 표로 시작";
   $("bannerWarn").hidden=!truncated;
 }
@@ -918,12 +925,14 @@ $("btnLink").addEventListener('click',()=>{
     authorEl.focus(); msg.hidden=false; msg.style.color="var(--soft)";
     msg.textContent="작성자 이름을 먼저 넣어주세요."; return;
   }
+  // 링크만 보내면 받는 쪽이 어느 버전인지 모른다. 한 줄 붙여서 같이 복사.
   const url=location.origin+location.pathname+location.search+"#"+encode();
-  out.hidden=false; out.value=url;
+  const text="["+modeLabel()+"] "+author+"님의 27년 진급 예상\n"+url;
+  out.hidden=false; out.value=text;
   msg.hidden=false; msg.style.color="var(--pink)";
-  const done=()=>{msg.textContent=author+"님 예측 링크를 복사했습니다.";};
-  const manual=()=>{msg.style.color="var(--soft)";msg.textContent="아래 주소를 길게 눌러 복사하세요.";};
-  if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(url).then(done).catch(manual);
+  const done=()=>{msg.textContent=modeLabel()+" 링크를 복사했습니다. 그대로 붙여넣으세요.";};
+  const manual=()=>{msg.style.color="var(--soft)";msg.textContent="아래 내용을 길게 눌러 복사하세요.";};
+  if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(text).then(done).catch(manual);
   else{out.select();try{document.execCommand('copy')?done():manual();}catch(e){manual();}}
 });
 
