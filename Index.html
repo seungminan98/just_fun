@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>진급 가능성 랭킹</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#212121;
+  --ink-soft:#757575;
+  --paper:#ffffff;
+  --card:#ffffff;
+  --rule:#e0e0e0;
+  --fill:#e8eaf6;
+  --go:#388e3c;
+  --hold:#ffa000;
+  --no:#9e9e9e;
+  --hi:#3f51b5;
+}
+:root:not([data-theme="light"]){
+  @media (prefers-color-scheme: dark){
+    --ink:#eeeeee;
+    --ink-soft:#9e9e9e;
+    --paper:#121212;
+    --card:#121212;
+    --rule:#323232;
+    --fill:#1c2033;
+    --go:#66bb6a;
+    --hold:#ffca28;
+    --no:#9e9e9e;
+    --hi:#7986cb;
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#eeeeee; --ink-soft:#9e9e9e; --paper:#121212; --card:#121212;
+  --rule:#323232; --fill:#1c2033; --go:#66bb6a; --hold:#ffca28; --no:#9e9e9e; --hi:#7986cb;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);color:var(--ink);
+  font-family:"Noto Sans KR",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  font-size:15px;line-height:1.5;-webkit-text-size-adjust:100%;
+  font-variant-numeric:tabular-nums;
+}
+.wrap{max-width:560px;margin:0 auto;padding:20px 14px 64px}
+
+header{margin-bottom:18px}
+h1{font-size:21px;font-weight:900;letter-spacing:-.02em;margin:0 0 4px}
+.sub{font-size:12.5px;color:var(--ink-soft);margin:0}
+
+.tally{display:flex;margin:16px 0 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.tally div{flex:1;padding:11px 2px}
+.tally div+div{border-left:1px solid var(--rule);padding-left:12px}
+.tally b{display:block;font-size:22px;font-weight:900;line-height:1.1}
+.tally span{font-size:11px;color:var(--ink-soft)}
+.t-go b{color:var(--go)} .t-hold b{color:var(--hold)} .t-no b{color:var(--no)}
+
+.panel{border-bottom:1px solid var(--rule);margin-bottom:10px}
+.panel>summary{cursor:pointer;padding:12px 2px;font-size:13px;font-weight:700;list-style:none}
+.panel>summary::-webkit-details-marker{display:none}
+.panel>summary::after{content:"조절";float:right;font-weight:400;color:var(--ink-soft);font-size:12px}
+.panel[open]>summary::after{content:"닫기"}
+.panel .body{padding:2px 2px 16px}
+.slider{margin-top:12px}
+.slider label{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink-soft);margin-bottom:5px}
+.slider label b{color:var(--ink);font-weight:700}
+input[type=range]{width:100%;accent-color:var(--hi);height:22px}
+
+.row{
+  position:relative;background:var(--card);border-bottom:1px solid var(--rule);overflow:hidden;
+}
+.gauge{position:absolute;inset:0 auto 0 0;background:var(--fill);transition:width .35s ease}
+.head{position:relative;display:flex;align-items:center;gap:10px;padding:12px 4px;cursor:pointer}
+.rank{font-size:15px;font-weight:900;width:24px;text-align:right;color:var(--hi)}
+.who{flex:1;min-width:0}
+.name{font-weight:700;font-size:15.5px}
+.meta{font-size:11.5px;color:var(--ink-soft);margin-top:1px}
+.score{font-size:17px;font-weight:900}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:1px}
+.d-go{background:var(--go)} .d-hold{background:var(--hold)} .d-no{background:var(--no)}
+
+.edit{position:relative;display:none;padding:2px 4px 16px}
+.row.open .edit{display:block}
+.field{display:flex;align-items:center;gap:8px;margin-top:10px}
+.field>span{font-size:12px;color:var(--ink-soft);width:62px;flex:none}
+select,input[type=number]{
+  flex:1;min-width:0;font:inherit;font-size:13.5px;padding:7px 8px;
+  background:var(--paper);color:var(--ink);border:1px solid var(--rule);border-radius:4px;
+}
+.field .trio{display:flex;gap:5px;flex:1}
+.field .trio select{flex:1}
+.field .trio input[type=number]{text-align:center;padding:7px 2px;-moz-appearance:textfield}
+.field .trio input::-webkit-outer-spin-button,.field .trio input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.yrlabel{font-size:10px;color:var(--ink-soft);text-align:center;display:block;margin-bottom:3px}
+.trio>div{flex:1;min-width:0}
+
+.actions{display:flex;gap:8px;margin-top:18px}
+button{
+  font:inherit;font-size:13px;font-weight:700;padding:10px 14px;border-radius:4px;
+  border:1px solid var(--rule);background:var(--card);color:var(--ink);cursor:pointer;flex:1
+}
+button:focus-visible,.head:focus-visible,select:focus-visible{outline:2px solid var(--hi);outline-offset:2px}
+.note{font-size:11.5px;color:var(--ink-soft);margin-top:16px;line-height:1.6}
+
+.banner{
+  display:flex;align-items:center;gap:10px;margin-top:14px;padding:10px 12px;
+  border-left:3px solid var(--hi);background:var(--fill);font-size:12.5px;line-height:1.45
+}
+.banner div{flex:1}
+.banner b{font-weight:700}
+.banner button{flex:none;padding:7px 10px;font-size:12px}
+
+.share{margin-top:22px;padding-top:16px;border-top:1px solid var(--rule)}
+.share .field{margin-top:0;margin-bottom:9px}
+.share input[type=text]{
+  width:100%;font:inherit;font-size:13.5px;padding:8px;
+  background:var(--paper);color:var(--ink);border:1px solid var(--rule);border-radius:4px
+}
+.share .field input[type=text]{flex:1;width:auto}
+button.wide{width:100%;flex:none;background:var(--hi);border-color:var(--hi);color:#fff}
+#linkOut{margin-top:9px;font-size:12px;color:var(--ink-soft)}
+.msg{font-size:12px;color:var(--go);margin:8px 0 0;font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>진급 가능성 랭킹</h1>
+  <p class="sub">22명 · 고과와 오픽을 채우면 1순위부터 다시 줄 세웁니다</p>
+</header>
+
+<div id="banner" class="banner" hidden>
+  <div><b id="bannerName"></b>을 보고 있습니다. 값을 고치면 내 사본으로 바뀝니다.</div>
+  <button id="btnMine" type="button">내 것으로 돌아가기</button>
+</div>
+
+<div class="tally">
+  <div class="t-go"><b id="cGo">0</b><span>승격권</span></div>
+  <div class="t-hold"><b id="cHold">0</b><span>조건부</span></div>
+  <div class="t-no"><b id="cNo">0</b><span>대기</span></div>
+</div>
+
+<details class="panel">
+  <summary>점수 비중</summary>
+  <div class="body">
+    <div class="slider">
+      <label>고과 <b><span id="wG">55</span>%</b></label>
+      <input type="range" id="sG" min="0" max="100" value="55">
+    </div>
+    <div class="slider">
+      <label>어학 <b><span id="wO">20</span>%</b></label>
+      <input type="range" id="sO" min="0" max="100" value="20">
+    </div>
+    <div class="slider">
+      <label>체류연차 <b><span id="wY">25</span>%</b></label>
+      <input type="range" id="sY" min="0" max="100" value="25">
+    </div>
+  </div>
+</details>
+
+<div id="list"></div>
+
+<div class="actions">
+  <button id="btnReset">전부 비우기</button>
+  <button id="btnDemo">예시로 채우기</button>
+</div>
+
+<div class="share">
+  <div class="field"><span>작성자</span><input type="text" id="author" maxlength="12" placeholder="예: 승민"></div>
+  <button id="btnLink" class="wide">공유 링크 만들기</button>
+  <input type="text" id="linkOut" readonly hidden>
+  <p id="linkMsg" class="msg" hidden></p>
+</div>
+
+<p class="note">
+  고과는 등급별로 받은 개수를 넣으면 개수 가중 평균으로 환산합니다(가 100 · 나 75 · 다 50 · 라 20). 오픽 IM2 미만이거나 표준 연한(4년)에 못 미치면 조건부로 내려갑니다.
+  점수식은 공식 승격 기준이 아니라 여기서 정한 가정이라, 비중을 바꾸면 순위도 바뀝니다.
+</p>
+</div>
+
+<script>
+const NAMES=["효묵","함좌","희섭","민석","승언","현석","민오","해원","서준","지승","서연","윤석","대웅","신희","원영","혜림","청운","경훈","혜원","상미","현구","장진"];
+const GRADE={"가":100,"나":75,"다":50,"라":20};
+const GKEYS=["가","나","다","라"];
+const OPIC={"AL":100,"IH":90,"IM3":75,"IM2":60,"IM1":35,"IL":15,"NH":0};
+const OPIC_MIN=60, STD_YEAR=4;
+const KEY="promo-rank-v1";
+
+let W={g:55,o:20,y:25};
+let people=NAMES.map((n,i)=>({no:i+1,name:n,gc:["","","",""],o:"",yr:"",bonus:""}));
+let openId=null;
+let shared=false;
+let author="";
+
+try{const s=localStorage.getItem(KEY);if(s){const d=JSON.parse(s);if(d.people&&d.people.length===NAMES.length){people=d.people;}
+else if(d.people){d.people.forEach(o=>{const t=people.find(p=>p.no===o.no);if(t)Object.assign(t,o);});}if(d.W)W=d.W;if(d.author)author=d.author;}}catch(e){}
+people.forEach(p=>{if(!Array.isArray(p.gc)||p.gc.length!==4)p.gc=["","","",""];delete p.g;});
+
+function save(){if(shared)return;try{localStorage.setItem(KEY,JSON.stringify({people,W,author}));}catch(e){}}
+
+const OKEYS=["AL","IH","IM3","IM2","IM1","IL","NH"];
+
+function encode(){
+  const rows=people.map(p=>[
+    p.gc.map(x=>x===""?"":x).join(","),
+    p.o===""?"":OKEYS.indexOf(p.o),
+    p.yr,p.bonus
+  ].join("|")).join(";");
+  return "n="+encodeURIComponent(author||"")+"&w="+[W.g,W.o,W.y].join(",")+"&d="+encodeURIComponent(rows);
+}
+
+function decode(hash){
+  const q={};
+  hash.replace(/^#/,"").split("&").forEach(kv=>{
+    const i=kv.indexOf("=");if(i<0)return;
+    q[kv.slice(0,i)]=decodeURIComponent(kv.slice(i+1));
+  });
+  if(!q.d)return null;
+  const rows=q.d.split(";");
+  if(rows.length!==NAMES.length)return null;
+  const ppl=NAMES.map((n,i)=>{
+    const f=(rows[i]||"").split("|");
+    const gc=(f[0]||"").split(",");
+    return {
+      no:i+1,name:n,
+      gc:[0,1,2,3].map(k=>gc[k]===undefined?"":gc[k]),
+      o:f[1]===""||f[1]===undefined?"":(OKEYS[Number(f[1])]||""),
+      yr:f[2]||"",bonus:f[3]||""
+    };
+  });
+  const w=(q.w||"").split(",").map(Number);
+  return {people:ppl,author:q.n||"누군가",W:w.length===3&&w.every(x=>!isNaN(x))?{g:w[0],o:w[1],y:w[2]}:null};
+}
+
+const incoming=location.hash.length>3?decode(location.hash):null;
+if(incoming){
+  people=incoming.people;author=incoming.author;shared=true;
+  if(incoming.W)W=incoming.W;
+}
+
+function paintBanner(){
+  banner.hidden=!shared;
+  if(shared)bannerName.textContent=author+" 예측";
+}
+
+function goMine(){
+  shared=false;author="";
+  history.replaceState(null,"",location.pathname+location.search);
+  people=NAMES.map((n,i)=>({no:i+1,name:n,gc:["","","",""],o:"",yr:"",bonus:""}));
+  W={g:55,o:20,y:25};
+  try{const s=localStorage.getItem(KEY);if(s){const d=JSON.parse(s);
+    if(d.people)d.people.forEach(o=>{const t=people.find(p=>p.no===o.no);if(t)Object.assign(t,o);});
+    if(d.W)W=d.W;author=d.author||"";
+  }}catch(e){}
+  people.forEach(p=>{if(!Array.isArray(p.gc)||p.gc.length!==4)p.gc=["","","",""];});
+  openId=null;syncControls();paintBanner();render();
+}
+
+function detach(keepName){
+  if(!shared)return;
+  shared=false;
+  if(!keepName){author="";if(typeof authorEl!=="undefined")authorEl.value="";}
+  history.replaceState(null,"",location.pathname+location.search);
+  paintBanner();save();
+}
+
+function calc(p){
+  let gs=null,n=0,acc=0;
+  p.gc.forEach((c,i)=>{const v=c===""?0:Number(c);if(v>0){n+=v;acc+=GRADE[GKEYS[i]]*v;}});
+  if(n>0)gs=acc/n;
+  const os=p.o===""?null:OPIC[p.o];
+  const yr=p.yr===""?null:Number(p.yr);
+  const ys=yr===null?null:Math.min(100,(yr/STD_YEAR)*100);
+  const bonus=p.bonus===""?0:Number(p.bonus);
+  const tw=W.g+W.o+W.y||1;
+  const total=((gs??0)*W.g+(os??0)*W.o+(ys??0)*W.y)/tw+bonus;
+  const filled=gs!==null||os!==null||yr!==null;
+  let state="no";
+  if(filled){
+    const langOK=os!==null&&os>=OPIC_MIN;
+    const yrOK=yr!==null&&yr>=STD_YEAR;
+    if(langOK&&yrOK&&total>=70)state="go";
+    else if(total>=45)state="hold";
+  }
+  const flags=[];
+  if(p.o!==""&&OPIC[p.o]<OPIC_MIN)flags.push("어학 미달");
+  if(yr!==null&&yr<STD_YEAR)flags.push("연한 "+yr+"년");
+  return {total,gs,os,ys,state,filled,flags};
+}
+
+function sel(id,field,idx,cur,opts,ph){
+  let h='<select data-id="'+id+'" data-f="'+field+'" data-i="'+idx+'"><option value=""'+(cur===""?" selected":"")+'>'+ph+'</option>';
+  opts.forEach(o=>{h+='<option value="'+o+'"'+(cur===o?" selected":"")+'>'+o+'</option>';});
+  return h+'</select>';
+}
+
+function render(){
+  const scored=people.map(p=>({p,r:calc(p)}));
+  const max=Math.max(100,...scored.map(s=>s.r.total));
+  scored.sort((a,b)=>{
+    if(a.r.filled!==b.r.filled)return a.r.filled?-1:1;
+    if(b.r.total!==a.r.total)return b.r.total-a.r.total;
+    return a.p.no-b.p.no;
+  });
+  const c={go:0,hold:0,no:0};scored.forEach(s=>c[s.r.state]++);
+  cGo.textContent=c.go;cHold.textContent=c.hold;cNo.textContent=c.no;
+
+  list.innerHTML=scored.map((s,i)=>{
+    const p=s.p,r=s.r;
+    const label={go:"승격권",hold:"조건부",no:"대기"}[r.state];
+    const gsum=GKEYS.map((k,j)=>p.gc[j]&&Number(p.gc[j])>0?k+p.gc[j]:"").filter(Boolean).join(" ");
+    const meta=[p.no+"번",...(r.flags.length?r.flags:[gsum||"미입력"])].join(" · ");
+    return '<div class="row'+(openId===p.no?" open":"")+'">'+
+      '<div class="gauge" style="width:'+(r.filled?Math.min(100,r.total/max*100):0)+'%"></div>'+
+      '<div class="head" tabindex="0" role="button" data-open="'+p.no+'">'+
+        '<div class="rank">'+(i+1)+'</div>'+
+        '<div class="who"><div class="name">'+p.name+'</div>'+
+        '<div class="meta"><i class="dot d-'+r.state+'"></i>'+label+' · '+meta+'</div></div>'+
+        '<div class="score">'+(r.filled?Math.round(r.total):"–")+'</div>'+
+      '</div>'+
+      '<div class="edit">'+
+        '<div class="field"><span>고과</span><div class="trio">'+
+          GKEYS.map((k,j)=>'<div><span class="yrlabel">'+k+'</span><input type="number" min="0" max="20" step="1" data-id="'+p.no+'" data-f="gc" data-i="'+j+'" value="'+p.gc[j]+'" placeholder="0"></div>').join('')+
+        '</div></div>'+
+        '<div class="field"><span>오픽</span>'+sel(p.no,"o",0,p.o,["AL","IH","IM3","IM2","IM1","IL","NH"],"미응시")+'</div>'+
+        '<div class="field"><span>체류연차</span><input type="number" min="0" max="15" step="1" data-id="'+p.no+'" data-f="yr" value="'+p.yr+'" placeholder="년"></div>'+
+        '<div class="field"><span>가점</span><input type="number" min="0" max="15" step="1" data-id="'+p.no+'" data-f="bonus" value="'+p.bonus+'" placeholder="0~15"></div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+function find(id){return people.find(p=>p.no===Number(id));}
+
+list.addEventListener('click',e=>{
+  const h=e.target.closest('[data-open]');
+  if(h){const id=Number(h.dataset.open);openId=openId===id?null:id;render();}
+});
+list.addEventListener('keydown',e=>{
+  if((e.key==="Enter"||e.key===" ")&&e.target.dataset.open){e.preventDefault();e.target.click();}
+});
+list.addEventListener('change',e=>{
+  const t=e.target;if(!t.dataset.f)return;
+  const p=find(t.dataset.id);
+  if(t.dataset.f==="gc")p.gc[Number(t.dataset.i)]=t.value;
+  else p[t.dataset.f]=t.value;
+  detach();save();render();
+});
+[["sG","g","wG"],["sO","o","wO"],["sY","y","wY"]].forEach(([s,k,l])=>{
+  const el=document.getElementById(s);
+  el.addEventListener('input',()=>{W[k]=Number(el.value);document.getElementById(l).textContent=el.value;detach();save();render();});
+});
+function syncControls(){
+  [["sG","g","wG"],["sO","o","wO"],["sY","y","wY"]].forEach(([s,k,l])=>{
+    document.getElementById(s).value=W[k];document.getElementById(l).textContent=W[k];
+  });
+  authorEl.value=author;
+}
+btnReset.addEventListener('click',()=>{
+  people=NAMES.map((n,i)=>({no:i+1,name:n,gc:["","","",""],o:"",yr:"",bonus:""}));
+  openId=null;detach();save();render();
+});
+
+const authorEl=document.getElementById('author');
+authorEl.addEventListener('input',()=>{detach(true);author=authorEl.value.trim();save();});
+btnMine.addEventListener('click',goMine);
+
+btnLink.addEventListener('click',()=>{
+  if(!author){authorEl.focus();linkMsg.hidden=false;linkMsg.style.color="var(--hold)";linkMsg.textContent="작성자 이름을 먼저 넣어주세요.";return;}
+  const url=location.origin+location.pathname+location.search+"#"+encode();
+  linkOut.hidden=false;linkOut.value=url;
+  linkMsg.hidden=false;linkMsg.style.color="var(--go)";
+  const done=()=>{linkMsg.textContent=author+" 예측 링크를 복사했습니다.";};
+  const manual=()=>{linkMsg.style.color="var(--ink-soft)";linkMsg.textContent="아래 주소를 길게 눌러 복사하세요.";};
+  if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(url).then(done).catch(manual);}
+  else{linkOut.select();try{document.execCommand('copy')?done():manual();}catch(e){manual();}}
+});
+
+btnDemo.addEventListener('click',()=>{
+  const O=["AL","IH","IM3","IM2","IM1","IL",""];
+  people.forEach((p,i)=>{
+    const a=(i*2)%3, b=(i*3+1)%4, c=(i+2)%3, d=i%5===0?1:0;
+    p.gc=[String(a),String(b),String(c),String(d)];
+    p.o=O[(i*4)%7];
+    p.yr=String(1+((i*3)%7));
+    p.bonus=String((i%4));
+  });
+  detach();save();render();
+});
+syncControls();paintBanner();render();
+</script>
+</body>
+</html>
