@@ -1,2 +1,3 @@
 # just_fun
 그냥 재미로 보는 27년 CL2>3 예상 진급자
+https://seungminan98.github.io/just_fun/
